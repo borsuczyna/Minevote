@@ -1,4 +1,5 @@
 import Game from './game/game';
+import FreeCam from './render/camera/freecam';
 
 let player: HTMLCanvasElement = document.getElementById('player') as HTMLCanvasElement;
 let game: Game = new Game(player);
@@ -28,6 +29,8 @@ let rectangle = new Gradient(game.context, new Color(255, 0, 0));
 
 let normalShader: Shader = new Shader(game.context);
 game.render.lightColor = new Color(1000, 255, 255);
+
+game.camera = new FreeCam(game);
 
 function update() {
     requestAnimationFrame(update);

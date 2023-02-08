@@ -1,4 +1,6 @@
 import Cursor from "../controls/cursor";
+import Keyboard from "../controls/keyboard";
+import Camera from "../render/camera/camera";
 import Render from "../render/render";
 
 declare const webglUtils: {
@@ -13,6 +15,10 @@ export default class Game {
     canvas: HTMLCanvasElement;
     context: WebGLRenderingContext;
     render: Render;
+    camera: Camera = new Camera(this);
+    
+    // Controllers
+    keyboard: Keyboard;
     cursor: Cursor;
 
     constructor(canvas: HTMLCanvasElement) {
@@ -24,13 +30,15 @@ export default class Game {
         this.context = context;
 
         // Render
-        this.render = new Render(this.context);
+        this.render = new Render(this.context, this);
 
-        // Cursor
+        // Controllers
         this.cursor = new Cursor(canvas);
+        this.keyboard = new Keyboard(canvas);
     }
 
     update(): this {
+        this.camera.update();
         this.render.clear();
         this.render.drawArrays();
 

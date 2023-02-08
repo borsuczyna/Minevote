@@ -1,8 +1,8 @@
+import Game from "../game/game";
 import Shader from "../shader/shader";
 import { Position2D, Position3D, Position4D, Size } from "../uitls/position";
 import Settings from "../uitls/Settings";
 import Cache, { TextureInfo } from "./cache";
-import Camera from "./camera/camera";
 import Color from "./color";
 
 interface Buffers {
@@ -50,15 +50,16 @@ interface DrawCall {
 
 export default class Render {
     private drawCalls: DrawCall[] = [];
+    parent: Game;
     context: WebGLRenderingContext;
     cache: Cache;
     shader: Shader;
     buffers: Buffers;
     lightDirection: Position2D = new Position2D();
     lightColor: Color = new Color();
-    camera: Camera = new Camera(this);
 
-    constructor(context: WebGLRenderingContext) {
+    constructor(context: WebGLRenderingContext, parent: Game) {
+        this.parent = parent;
         this.context = context;
 
         this.cache = new Cache(context);
@@ -243,8 +244,8 @@ export default class Render {
         let zMult: number = 1/((position.z/2) + 1);
 
         let validPosition: Position2D = new Position2D(
-            this.context.canvas.width / 2 + (position.x * this.camera.zoom * Settings.BlockSize) - (this.camera.position.x * this.camera.zoom * Settings.BlockSize),
-            this.context.canvas.height / 2 - (position.y * this.camera.zoom * Settings.BlockSize) + (this.camera.position.y * this.camera.zoom * Settings.BlockSize)
+            this.context.canvas.width / 2 + (position.x * this.parent.camera.zoom * Settings.BlockSize) - (this.parent.camera.position.x * this.parent.camera.zoom * Settings.BlockSize),
+            this.context.canvas.height / 2 - (position.y * this.parent.camera.zoom * Settings.BlockSize) + (this.parent.camera.position.y * this.parent.camera.zoom * Settings.BlockSize)
         );
 
         let cx: number = this.context.canvas.width/2;
@@ -260,13 +261,13 @@ export default class Render {
         let zMult: number = 1/((depth/2) + 1);
 
         let validPosition: Position2D = new Position2D(
-            (position.x - (this.context.canvas.width / 2)) / zMult + (this.camera.position.x * this.camera.zoom * Settings.BlockSize),
-            (-position.y + (this.context.canvas.height / 2)) / zMult + (this.camera.position.y * this.camera.zoom * Settings.BlockSize)
+            (position.x - (this.context.canvas.width / 2)) / zMult + (this.parent.camera.position.x * this.parent.camera.zoom * Settings.BlockSize),
+            (-position.y + (this.context.canvas.height / 2)) / zMult + (this.parent.camera.position.y * this.parent.camera.zoom * Settings.BlockSize)
         );
 
         return new Position3D(
-            (validPosition.x / this.camera.zoom) / Settings.BlockSize,
-            (validPosition.y / this.camera.zoom) / Settings.BlockSize,
+            (validPosition.x / this.parent.camera.zoom) / Settings.BlockSize,
+            (validPosition.y / this.parent.camera.zoom) / Settings.BlockSize,
             depth
         );
     }
