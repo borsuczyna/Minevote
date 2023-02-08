@@ -104,6 +104,10 @@ class Position {
         if(this.w != undefined && w) output += this.w * w;
         return output;
     }
+
+    clone() {
+        return new Position(this.x, this.y, this.z, this.w);
+    }
 }
 
 export class Position2D extends Position {

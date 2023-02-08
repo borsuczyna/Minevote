@@ -240,7 +240,7 @@ export default class Render {
         shader.setValue('uh', uh, 'float');
     }
 
-    getScreenFromWorldPosition(position: Position3D = new Position3D()): Position2D {
+    getScreenFromWorldPosition(position: Position3D = new Position3D()): Position3D {
         let zMult: number = 1/((position.z/2) + 1);
 
         let validPosition: Position2D = new Position2D(
@@ -251,9 +251,10 @@ export default class Render {
         let cx: number = this.context.canvas.width/2;
         let cy: number = this.context.canvas.height/2;
 
-        return new Position2D(
+        return new Position3D(
             cx + (validPosition.x - cx) * zMult,
-            cy + (validPosition.y - cy) * zMult
+            cy + (validPosition.y - cy) * zMult,
+            position.z
         );
     }
 
@@ -270,6 +271,12 @@ export default class Render {
             (validPosition.y / this.parent.camera.zoom) / Settings.BlockSize,
             depth
         );
+    }
+
+    getDimensions(dimensions: Size, z: number = 0): Size {        
+        let zMult: number = 1/((z/2) + 1);
+    
+        return dimensions.clone().multiply(this.parent.camera.zoom).multiply(zMult);
     }
 
     drawArrays() {
