@@ -2,8 +2,8 @@ import defaultShader from './shaders/default.glsl?raw';
 import vertexShaderTemplate from './shaders/vertex-template.glsl?raw';
 import pixelShaderTemplate from './shaders/pixel-template.glsl?raw';
 
-const vertexShaderRegex = /(\w+) vertexShaderFunction\(([\s\S]+?)\)\s*\{[\s\S]+?\}/;
-const pixelShaderRegex = /(\w+) pixelShaderFunction\(([\s\S]+?)?\)\s*\{[\s\S]+?\}/;
+const vertexShaderRegex = /(\w+) vertexShaderFunction\(([\s\S]+?)?\)\s*\{([\s\S]+)\}/;
+const pixelShaderRegex = /(\w+) pixelShaderFunction\(([\s\S]+?)?\)\s*\{([\s\S]+)\}/;
 const structVariableRegex = /(\w+)\s+(\w+)(\s+:\s+(\w+))?/;
 const vertexUniformsRegex = /struct VertexUniforms\s*\{([\s\S]+?)\}/;
 const pixelUniformsRegex = /struct PixelUniforms\s*\{([\s\S]+?)\}/;
@@ -19,6 +19,27 @@ interface StructVariable {
     name: string;
     assignTo?: string;
 };
+
+function matchBody(str: string, pattern: RegExp, n: number) {
+    let match = str.match(pattern);
+    if (match) {
+        let functionBody = match[n];
+        let stack = [];
+        for (let i = 0; i < functionBody.length; i++) {
+            if (functionBody[i] === '{') {
+                stack.push('{');
+            } else if (functionBody[i] === '}') {
+                stack.pop();
+                if (stack.length === 0) {
+                  return match[n].slice(0, i+1);
+                }
+            }
+        }
+        throw new Error('Mismatched brackets in function body');
+    } else {
+        throw new Error('No match');
+    }
+}
 
 function readStruct(struct: string): StructVariable[] {
     while(struct.search('  ') != -1) {
@@ -82,6 +103,19 @@ function replaceAll(code: string, definitions: Definitions): string {
     return code;
 }
 
+function assignedVariables(code: string, definitions: Definitions): string {
+    const assignedVariableRegex = /<AssignedVariable:(Pixel|Vertex):(\w+)>/;
+    code = code.replaceAll(new RegExp(assignedVariableRegex, 'g'), (e) => {
+        let matched = e.match(assignedVariableRegex);
+        if(matched && matched[2] && definitions[matched[2]]) {
+            return definitions[matched[2]];
+        }
+        throw new Error(`Required "${matched && matched[2] || 'unknown'}" input for pixel shader`);
+    });
+
+    return code;
+}
+
 export function compileShader(code: string = defaultShader): [string, string] {
     let vertexShader = code.match(vertexShaderRegex);
     let pixelShader = code.match(pixelShaderRegex);
@@ -93,11 +127,13 @@ export function compileShader(code: string = defaultShader): [string, string] {
     
     // Vertex shader
     let vertexShaderCode = vertexShader[0];
+    vertexShaderCode = matchBody(vertexShaderCode, /([\s\S]+)/, 0);
     let vertexShaderOutputType = vertexShader[1];
     let vertexShaderInput = readTypeAndName(vertexShader[2]);
     
     // Pixel shader
     let pixelShaderCode = pixelShader[0];
+    pixelShaderCode = matchBody(pixelShaderCode, /([\s\S]+)/, 0);
     let pixelShaderOutput = pixelShader[1];
     let pixelShaderInput = readTypeAndName(pixelShader[2]);
     
@@ -114,6 +150,7 @@ export function compileShader(code: string = defaultShader): [string, string] {
     let VSStructVariables: StructVariable[] = readStruct(VSStruct[1]);
     let vertexDefinitions = {
         'TEXCOORD0': 'internal_inTexCoord',
+        'TEXCOORD1': 'internal_inUvSize',
         'POSITION0': 'internal_position',
         'DIFFUSE0': 'internal_diffuse',
         'MATRIX': 'internal_matrix',
@@ -145,6 +182,30 @@ export function compileShader(code: string = defaultShader): [string, string] {
         PixelUniformsCode = PixelUniformsStruct.map(variable => `uniform ${variable.type} ${variable.name};`).join('\n');
     }
     
+    function findAllFunctions(code: string): [string, string] {
+        let vertexFunctions: string = '';
+        let pixelFunctions: string = '';
+        const functionRegex = /(\w+) ([\w.-:]+)\(([\s\S]+?)?\)\s*\{([\s\S]+)\}/;
+        while(code.search(functionRegex) != -1) {
+            let position = code.search(functionRegex);
+            let match = <RegExpMatchArray>code.match(functionRegex);
+            let body = matchBody(match[0], functionRegex, 0);
+            code = code.slice(position + body.length, code.length);
+            
+            if(match[2] != 'pixelShaderFunction' && match[2] != 'vertexShaderFunction') {
+                let defaultName: string = `${match[1]} ${match[2]}`;
+                if(match[2].search(':PIXEL')) pixelFunctions += defaultName.slice(0, defaultName.length - ':PIXEL'.length) + body.slice(defaultName.length, body.length);
+                else if(match[2].search(':VERTEX')) pixelFunctions += defaultName.slice(0, defaultName.length - ':VERTEX'.length) + body.slice(defaultName.length, body.length);
+                else {
+                    pixelFunctions += body;
+                    vertexFunctions += body;
+                }
+            };
+        }
+        return [vertexFunctions, pixelFunctions];
+    }
+
+    let [vertexFunctions, pixelFunctions] = findAllFunctions(code);
     let finalVertexShader = vertexShaderTemplate+''; // just clone it.
     let finalPixelShader = pixelShaderTemplate+''; // just clone it.
     let definitions: Definitions = {
@@ -164,20 +225,9 @@ export function compileShader(code: string = defaultShader): [string, string] {
         'PixelStructLoad': PSVaryingsLoad,
         'VertexUniforms': VertexUniformsCode,
         'PixelUniforms': PixelUniformsCode,
+        'VertexFunctions': vertexFunctions,
+        'PixelFunctions': pixelFunctions,
     };
-
-    function assignedVariables(code: string, definitions: Definitions): string {
-        const assignedVariableRegex = /<AssignedVariable:(Pixel|Vertex):(\w+)>/;
-        code = code.replaceAll(new RegExp(assignedVariableRegex, 'g'), (e) => {
-            let matched = e.match(assignedVariableRegex);
-            if(matched && matched[2] && definitions[matched[2]]) {
-                return definitions[matched[2]];
-            }
-            throw new Error(`Required "${matched && matched[2] || 'unknown'}" input for pixel shader`);
-        });
-
-        return code;
-    }
     
     finalVertexShader = replaceAll(finalVertexShader, definitions);
     finalPixelShader = replaceAll(finalPixelShader, definitions);

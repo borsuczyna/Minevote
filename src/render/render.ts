@@ -282,8 +282,9 @@ export default class Render {
     }
 
     private updateShaderUV(shader: Shader, uw: number, uh: number) {
-        shader.setValue('uw', uw, 'float');
-        shader.setValue('uh', uh, 'float');
+        shader.setValue('internal_uw', uw, 'float');
+        shader.setValue('internal_uh', uh, 'float');
+        shader.setValue('internal_inUvSize', [uw, uh], 'vec2');
     }
 
     private updateShaderLights(shader: Shader, lights: Light[]) {
