@@ -29,13 +29,16 @@ let gradient = new Gradient(game.context,
 );
 let rectangle = new Gradient(game.context, new Color(255, 0, 0));
 
+import waterShaderCode from './shader/shaders/water.glsl?raw';
 let normalShader: Shader = new Shader(game.context);
+let waterShader: Shader = new Shader(game.context, waterShaderCode);
 game.render.lightColor = new Color(425, 425, 425);
 game.render.lightDirection.set(2, -2).normalize();
+game.render.normalPower = 1;
 
 game.camera = new FreeCam(game);
 let blocks: Position3D[] = [];
-for(let x = 0; x < 21; x++) {
+for(let x = 0; x < 31; x++) {
     blocks.push(new Position3D(x, 0, 0));
 }
 
@@ -62,26 +65,40 @@ function update() {
         frameCount = 0;
     }
 
-    for(let block of blocks) {
-        let pos: Position3D = game.render.getScreenFromWorldPosition(block);
-        let size: Size = game.render.getDimensions(new Size(Settings.BlockSize, Settings.BlockSize));
-        game.render.drawImageWithNormal(pos, size, '/blocks/grass.png', '/blocks/grass-normal.png', normalShader, [
-            new Color(255, 255, 255),
-            new Color(75, 75, 75),
-        ]);
-    }
+    game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, -100), new Size(5, 5), rectangle);
+
+    gradient.setAngleDegrees(performance.now()/10);
+    game.render.drawShader(new Position3D(), new Size(game.canvas.width, game.canvas.height), gradient);
 
     game.render.drawImageWithNormal(new Position3D(0, 0, 0), new Size(512, 512), '/blocks/gun.png', '/blocks/gun-normal.png', normalShader);
+
+    for(let id in blocks) {
+        let block = blocks[id];
+        if((id as unknown as number) < 5) {
+            game.render.drawImage3D(block, new Size(Settings.BlockSize, Settings.BlockSize), ['/blocks/water-top.png', 'clamp'], waterShader, [
+                new Color(255, 255, 255),
+                new Color(135, 135, 135),
+            ]);
+            game.render.drawImage3D((block.clone() as Position3D).add(0, -1, 0), new Size(Settings.BlockSize, Settings.BlockSize), '/blocks/water.png', waterShader, [
+                new Color(135, 135, 135),
+                new Color(75, 75, 75),
+            ]);
+        } else {
+            game.render.drawImage3DWithNormal(block, new Size(Settings.BlockSize, Settings.BlockSize), '/blocks/grass.png', '/blocks/grass-normal.png', normalShader, [
+                new Color(255, 255, 255),
+                new Color(135, 135, 135),
+            ]);
+            game.render.drawImage3DWithNormal((block.clone() as Position3D).add(0, -1, 0), new Size(Settings.BlockSize, Settings.BlockSize), '/blocks/dirt.png', '/blocks/dirt-normal.png', normalShader, [
+                new Color(135, 135, 135),
+                new Color(75, 75, 75),
+            ]);
+        }
+    }
 
     light.setPosition(new Position3D(game.cursor.position.x, game.cursor.position.y, 0));
     light2.setPosition(new Position3D(256 + Math.sin(performance.now()/900)*128, 256 + Math.cos(performance.now()/300)*128, 0));
     light3.setPosition(new Position3D(256 + Math.sin(-performance.now()/900)*128, 256 + Math.cos(-performance.now()/300)*128, 0));
-    game.render.setLights([light]);
-
-    game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, 10), new Size(5, 5), rectangle);
-
-    gradient.setAngleDegrees(performance.now()/10);
-    game.render.drawShader(new Position3D(), new Size(game.canvas.width, game.canvas.height), gradient);
+    game.render.setLights([light, light2, light3]);
 }
 
 requestAnimationFrame(update);

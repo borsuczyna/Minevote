@@ -15,12 +15,12 @@ export default class Keyboard {
     }
     
     private keyDown(e: KeyboardEvent) {
-        this.keysDown.push(e.key);
+        this.keysDown.push(e.key.toLocaleLowerCase());
         this.keyCodesDown.push(e.keyCode);
     }
     
     private keyUp(e: KeyboardEvent) {
-        this.keysDown = this.keysDown.filter(k => k !== e.key);
+        this.keysDown = this.keysDown.filter(k => k !== e.key.toLocaleLowerCase());
         this.keyCodesDown = this.keyCodesDown.filter(k => k !== e.keyCode);
     }
     

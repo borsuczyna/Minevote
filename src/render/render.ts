@@ -46,6 +46,8 @@ interface DrawCall {
     color: Color | Color[];
     uw: number;
     uh: number;
+    worldPosition?: Position3D;
+    worldSize?: Position2D;
     texCoords?: number[];
 };
 
@@ -59,6 +61,7 @@ export default class Render {
     lightDirection: Position2D = new Position2D();
     lightColor: Color = new Color();
     lights: Light[] = [];
+    normalPower: number =- 1;
 
     constructor(context: WebGLRenderingContext, parent: Game) {
         this.parent = parent;
@@ -96,14 +99,14 @@ export default class Render {
         this.context.clear(this.context.COLOR_BUFFER_BIT);
         this.context.clear(this.context.DEPTH_BUFFER_BIT);
         this.context.enable(this.context.BLEND);
-        this.context.enable(this.context.DEPTH_TEST);
+        this.context.disable(this.context.DEPTH_TEST);
         this.context.blendFunc(this.context.ONE, this.context.ONE_MINUS_SRC_ALPHA);
     }
 
     drawImage(
         position: Position3D,
         size: Size,
-        url: string,
+        url: string | [string, 'wrap' | 'clamp'],
         shader: Shader = this.shader,
         color: Color | Color[] = Color.White()
     ) {
@@ -124,11 +127,42 @@ export default class Render {
         });
     }
 
+    drawImage3D(
+        position: Position3D,
+        size: Size,
+        url: string | [string, 'wrap' | 'clamp'],
+        shader: Shader = this.shader,
+        color: Color | Color[] = Color.White()
+    ) {
+        let worldPosition: Position3D = position;
+        let worldSize: Position2D = size;
+        position = this.getScreenFromWorldPosition(position);
+        size = this.getDimensions(size);
+
+        let texture: TextureInfo = this.cache.getTextureFromCache(url);
+        let canvas: HTMLCanvasElement | OffscreenCanvas = this.context.canvas;
+
+        let matrix = m4.orthographic(0, canvas.width, canvas.height, 0, -100, 100);
+        matrix = m4.translate(matrix, position.x, position.y, position.z);
+        matrix = m4.scale(matrix, size.x, size.y, 1);
+
+        this.drawCalls.push({
+            texture,
+            matrix,
+            shader,
+            color,
+            uw: 1,
+            uh: 1,
+            worldPosition: worldPosition,
+            worldSize: worldSize,
+        });
+    }
+
     drawImageWithNormal(
         position: Position3D,
         size: Size,
-        url: string,
-        normal: string,
+        url: string | [string, 'wrap' | 'clamp'],
+        normal: string | [string, 'wrap' | 'clamp'],
         shader: Shader = this.shader,
         color: Color | Color[] = Color.White()
     ) {
@@ -150,12 +184,46 @@ export default class Render {
             uh: 1
         });
     }
+
+    drawImage3DWithNormal(
+        position: Position3D,
+        size: Size,
+        url: string | [string, 'wrap' | 'clamp'],
+        normal: string | [string, 'wrap' | 'clamp'],
+        shader: Shader = this.shader,
+        color: Color | Color[] = Color.White()
+    ) {
+        let worldPosition: Position3D = position;
+        let worldSize: Position2D = size;
+        position = this.getScreenFromWorldPosition(position);
+        size = this.getDimensions(size);
+        
+        let texture: TextureInfo = this.cache.getTextureFromCache(url);
+        let normalTexture: TextureInfo = this.cache.getTextureFromCache(normal);
+        let canvas: HTMLCanvasElement | OffscreenCanvas = this.context.canvas;
+
+        let matrix = m4.orthographic(0, canvas.width, canvas.height, 0, -100, 100);
+        matrix = m4.translate(matrix, position.x, position.y, position.z);
+        matrix = m4.scale(matrix, size.x, size.y, 1);
+
+        this.drawCalls.push({
+            texture,
+            normal: normalTexture,
+            matrix,
+            shader,
+            color,
+            uw: 1,
+            uh: 1,
+            worldPosition: worldPosition,
+            worldSize: worldSize,
+        });
+    }
     
     drawImageSection(
         position: Position3D,
         size: Size,
         uv: Position4D,
-        url: string,
+        url: string | [string, 'wrap' | 'clamp'],
         shader: Shader = this.shader,
         color: Color | Color[] = Color.White()
     ) {
@@ -219,8 +287,8 @@ export default class Render {
         let cy: number = this.context.canvas.height/2;
 
         return new Position3D(
-            cx + (validPosition.x - cx) * zMult,
-            cy + (validPosition.y - cy) * zMult,
+            Math.floor(cx + (validPosition.x - cx) * zMult),
+            Math.floor(cy + (validPosition.y - cy) * zMult),
             position.z
         );
     }
@@ -251,6 +319,7 @@ export default class Render {
         shader.setValue('directionalLightDir', this.lightDirection.array(), 'vec2');
         shader.setValue('directionalLightColor', this.lightColor.normalizedArray(), 'vec4');
         shader.setValue('screenSize', [this.context.canvas.width, this.context.canvas.height], 'vec2');
+        shader.setValue('normalPower', this.normalPower, 'float');
     }
 
     private updateShaderDiffuse(shader: Shader, color: Color | Color[]) {
@@ -301,7 +370,12 @@ export default class Render {
         }
     }
 
-    drawArrays() {
+    private updateWorldPosition(shader: Shader, position?: Position3D, size?: Size) {
+        shader.setValue(`internal_worldPosition`, position ? position.array() : [0, 0, 0], 'vec3');
+        shader.setValue(`internal_worldSize`, size ? size.array().map(value => typeof value == 'number' ? value/Settings.BlockSize : undefined) : [0, 0], 'vec2');
+    }
+
+    drawArrays() {      
         this.context.bindBuffer(this.context.ARRAY_BUFFER, this.buffers.position);
         this.context.enableVertexAttribArray(this.shader.positionLocation);
         this.context.vertexAttribPointer(this.shader.positionLocation, 2, this.context.FLOAT, false, 0, 0);
@@ -334,6 +408,7 @@ export default class Render {
             this.updateShaderDiffuse(drawCall.shader, drawCall.color);
             this.updateShaderUV(drawCall.shader, drawCall.uw, drawCall.uh);
             this.updateShaderLights(drawCall.shader, this.lights);
+            this.updateWorldPosition(drawCall.shader, drawCall.worldPosition, drawCall.worldSize);
 
             this.context.uniformMatrix4fv(drawCall.shader.matrixLocation, false, drawCall.matrix);
             this.context.drawArrays(this.context.TRIANGLES, 0, 6);

@@ -19,7 +19,9 @@ PSInput vertexShaderFunction(VSInput VS) {
     PSInput PS;
 
     PS.TexCoord = VS.TexCoord;
-    PS.Position = VS.Matrix * VS.Position;
+    vec4 position = VS.Position;
+    position.y += sin(VS.WorldPos.x + (VS.TexCoord.x * VS.WorldSize.x) + time/200.0)/10.0;
+    PS.Position = VS.Matrix * position;
 
     PS.ScreenCoord.xy = (PS.Position.xy+1.0)/2.0;
     PS.ScreenCoord.y = 1.0-PS.ScreenCoord.y;
@@ -32,7 +34,9 @@ vec4 pixelShaderFunction(PSInput PS) {
 
     color *= PS.Diffuse;
     color.rgb *= color.a;
-    color = applyWorldLights(color, PS.Normal, PS.ScreenCoord, false);
-
+    vec4 newColor = applyWorldLights(color, PS.Normal, PS.ScreenCoord, false);
+    color.rgb += (newColor.rgb - color.rgb)/3.0;
+    // color.a /= 0.5;
+    
     return color;
 }

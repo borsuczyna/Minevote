@@ -59,7 +59,7 @@ function readStruct(struct: string): StructVariable[] {
                 
                 if(variable[3] && variable[4]) structVariable.assignTo = variable[4];
                 return structVariable;
-            }
+            } return;
         });
 
     return variables;
@@ -152,6 +152,8 @@ export function compileShader(code: string = defaultShader): [string, string] {
         'TEXCOORD0': 'internal_inTexCoord',
         'TEXCOORD1': 'internal_inUvSize',
         'POSITION0': 'internal_position',
+        'WORLDPOS': 'internal_worldPosition',
+        'WORLDSIZE': 'internal_worldSize',
         'DIFFUSE0': 'internal_diffuse',
         'MATRIX': 'internal_matrix',
     };

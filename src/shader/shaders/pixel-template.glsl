@@ -1,4 +1,4 @@
-precision mediump float;
+precision highp float;
 uniform vec2 internal_inTexCoord;
 
 // Textures
@@ -10,6 +10,7 @@ uniform float time;
 uniform vec4 internal_diffuse_tl, internal_diffuse_tr, internal_diffuse_bl, internal_diffuse_br;
 uniform float internal_uw, internal_uh;
 uniform vec2 screenSize;
+uniform float normalPower;
 
 // Lights
 #define MAX_LIGHTS 16
@@ -47,7 +48,7 @@ vec4 applyWorldLight(vec4 color, vec4 screenCoord, vec2 normal, vec3 lightPositi
         max(dotValue, 0.0)
     );
     color = mix(color, color*lightColor, max(fPower, 0.0));
-    color = mix(color, color*normalColor, max(fNormalPower*3.0, 0.0));
+    color = mix(color, color*normalColor, max(fNormalPower*3.0*normalPower, 0.0));
     return color;
 }
 

@@ -56,10 +56,10 @@ export default class Cache {
         return textureInfo;
     }
 
-    getTextureFromCache(url: string): TextureInfo {
+    getTextureFromCache(url: string | [string, 'wrap' | 'clamp']): TextureInfo {
         let textureCache: TextureInfo | undefined = this.cache.find(texture => texture.url === url);
         if (!textureCache) {
-            textureCache = this.loadImageAndCreateTextureInfo(url);
+            textureCache = this.loadImageAndCreateTextureInfo(typeof url == 'string' ? url : url[0], typeof url != 'string' ? url[1] : 'wrap');
             this.cache.push(textureCache);
         }
         return textureCache;
