@@ -1,71 +1,5 @@
 import { compileShader } from "./compiler";
-
-let defaultVertexShader = `
-vec4 vertexShaderFunction() {
-    texCoord = inTexCoord;
-
-    screenCoord = matrix * position;
-    screenCoord.xy = (screenCoord.xy+1.0)/2.0;
-    screenCoord.y = 1.0-screenCoord.y;
-
-    return matrix * position;
-}
-`;
-
-let defaultPixelShader = `
-float aspectDistance2D(vec2 position0, vec2 position1) {
-    float aspectRatio = screenSize.x/screenSize.y;
-    float xDistance = length(position0.x - position1.x);
-    float yDistance = length(position0.y - position1.y)/aspectRatio;
-    return length(vec2(xDistance, yDistance));
-}
-
-vec4 applyWorldLight(vec4 color, vec3 lightPosition, vec4 lightColor, float lightSize) {
-    float fPower = 1.0-aspectDistance2D(screenCoord.xy, lightPosition.xy/screenSize.xy)/(lightSize/screenSize.x);
-    float fNormalPower = 1.0-aspectDistance2D(screenCoord.xy, lightPosition.xy/screenSize.xy)/(lightSize/screenSize.x*2.0);
-    vec2 dir = (lightPosition.xy/screenSize.xy) - screenCoord.xy;
-    dir = normalize(dir);
-    float dotValue = dot(normal.xy, dir.xy);
-
-    vec4 normalColor = mix(
-        vec4(1, 1, 1, 1),
-        lightColor,
-        max(dotValue, 0.0)
-    );
-    color = mix(color, color*lightColor, max(fPower, 0.0));
-    color = mix(color, color*normalColor, max(fNormalPower*3.0, 0.0));
-    return color;
-}
-
-vec4 applyWorldLights(vec4 color, bool onlySunLight) {
-    float dotValue = dot(normal.xy, directionalLightDir.xy);
-    color.rgb *= mix(
-        vec3(1, 1, 1),
-        directionalLightColor.rgb,
-        max(dotValue, 0.0)
-    );
-
-    for(int i = 0; i < MAX_LIGHTS; i++) {
-        if(lightActive[i]) {
-            color = applyWorldLight(color, lightPosition[i], lightColor[i], lightSize[i]);
-        }
-    }
-
-    return color;
-}
-
-vec4 pixelShaderFunction() {
-    vec4 color = texture2D(texture, vec2(texCoord.x, texCoord.y));
-    vec4 normalColor = texture2D(normalTexture, vec2(texCoord.x, texCoord.y));
-    
-    // vec4 applyWorldLights(vec4 color, bool onlySunLight)
-    color = applyWorldLights(color, false);
-
-    color *= diffuse;
-    color.rgb *= color.a;
-    // color.rgb = lightColor[0].rgb;
-    return color;
-}`;
+import defaultShader from './shaders/default.glsl?raw';
 
 declare const webglUtils: {
     [key: string]: any
@@ -84,13 +18,13 @@ export default class Shader {
     textureLocation: WebGLUniformLocation;
     normalLocation: WebGLUniformLocation;
 
-    constructor(context: WebGLRenderingContext, vertexShader: string = defaultVertexShader, pixelShader: string = defaultPixelShader) {
+    constructor(context: WebGLRenderingContext, shaderCode: string = defaultShader) {
         this.context = context;
         
-        this.program = webglUtils.createProgramFromSources(context, compileShader(vertexShader, pixelShader));
-        this.positionLocation = context.getAttribLocation(this.program, "position");
-        this.texcoordLocation = context.getAttribLocation(this.program, "inTexCoord");
-        this.matrixLocation = context.getUniformLocation(this.program, "matrix") as WebGLUniformLocation;
+        this.program = webglUtils.createProgramFromSources(context, compileShader(shaderCode));
+        this.positionLocation = context.getAttribLocation(this.program, "internal_position");
+        this.texcoordLocation = context.getAttribLocation(this.program, "internal_inTexCoord");
+        this.matrixLocation = context.getUniformLocation(this.program, "internal_matrix") as WebGLUniformLocation;
         this.textureLocation = context.getUniformLocation(this.program, "texture") as WebGLUniformLocation;
         this.normalLocation = context.getUniformLocation(this.program, "normalTexture") as WebGLUniformLocation;
     }

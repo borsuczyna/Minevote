@@ -21,13 +21,13 @@ import Light from './render/light';
 import Gradient from './shader/gradient';
 import Shader from './shader/shader';
 import './style.css';
-import { Position2D, Position3D, Size } from './uitls/position';
+import { Position3D, Size } from './uitls/position';
 import Settings from './uitls/Settings';
 let gradient = new Gradient(game.context, 
-    new Color(150, 255, 255), // red
-    new Color(180, 255, 255), // orange
+    new Color(255, 0, 0), // red
+    new Color(0, 255, 0), // orange
 );
-let rectangle = new Gradient(game.context, new Color(255, 0, 0));
+// let rectangle = new Gradient(game.context, new Color(255, 0, 0));
 
 let normalShader: Shader = new Shader(game.context);
 game.render.lightColor = new Color(425, 425, 425);
@@ -71,18 +71,18 @@ function update() {
         ]);
     }
 
-    game.render.drawImageWithNormal(new Position3D(0, 0, 0), new Size(512, 512), '/blocks/gun.png', '/blocks/gun-normal.png', normalShader, [
-        new Color(255, 255, 255),
-    ]);
+    // game.render.drawImageWithNormal(new Position3D(0, 0, 0), new Size(512, 512), '/blocks/gun.png', '/blocks/gun-normal.png', normalShader, [
+    //     new Color(255, 255, 255),
+    // ]);
 
     light.setPosition(new Position3D(game.cursor.position.x, game.cursor.position.y, 0));
-    light2.setPosition(new Position3D(256 + Math.sin(performance.now()/300)*128, 256 + Math.cos(performance.now()/300)*128, 0));
-    light3.setPosition(new Position3D(256 + Math.sin(-performance.now()/300)*128, 256 + Math.cos(-performance.now()/300)*128, 0));
-    game.render.setLights([light, light2, light3]);
+    light2.setPosition(new Position3D(256 + Math.sin(performance.now()/900)*128, 256 + Math.cos(performance.now()/300)*128, 0));
+    light3.setPosition(new Position3D(256 + Math.sin(-performance.now()/900)*128, 256 + Math.cos(-performance.now()/300)*128, 0));
+    game.render.setLights([light]);
 
-    game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, 10), new Size(5, 5), rectangle);
+    // game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, 10), new Size(5, 5), rectangle);
 
-    gradient.setAngleDegrees(90);
+    gradient.setAngleDegrees(performance.now()/10);
     game.render.drawShader(new Position3D(), new Size(game.canvas.width, game.canvas.height), gradient);
 }
 

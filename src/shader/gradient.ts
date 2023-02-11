@@ -1,5 +1,6 @@
 import Color from "../render/color";
 import Shader from "./shader";
+import gradientShader from './shaders/gradient.glsl?raw';
 
 function gradientReturnValue(colors: number) {
     const steps = Array.from({ length: colors - 1 }, (_, i) => i / (colors - 1));
@@ -10,28 +11,25 @@ function gradientReturnValue(colors: number) {
 
 export default class Gradient extends Shader {
     constructor(context: WebGLRenderingContext, ...colors: Color[]) {
-        let shaderCode = 'uniform float angle;\n';
+        let returnCode = 'return vec4(1, 0, 0, 1);';
+        let colorUniforms = '';
+        let uniforms: number[] = [];
         if(colors.length == 0) throw new Error('Need at least one color for gradient!');
         else if(colors.length == 1) {
-            shaderCode = `
-            uniform vec4 color0;
-
-            vec4 pixelShaderFunction() {
-                return color0;
-            }`;
+            returnCode = 'return color0;';
         } else {
-            for(let id in colors) {
-                shaderCode += `uniform vec4 color${id};\n`;
-            }
-
-            shaderCode += `
-            vec4 pixelShaderFunction() {
-                vec2 U = texCoord.xy - .5;
-                float x = .5 + length(U) * cos( atan(U.y,-U.x) + angle);
-                return ${gradientReturnValue(colors.length)};
-            }`;
+            returnCode = `return ${gradientReturnValue(colors.length)};`;
         }
-        super(context, undefined, shaderCode);
+
+        for(let id in colors) {
+            colorUniforms += `vec4 color${id};\n`;
+        }
+
+        let shaderCode = gradientShader+''; // just clone it.
+        shaderCode = shaderCode.replace('<colorUniforms>', colorUniforms);
+        shaderCode = shaderCode.replace('<returnCode>', returnCode);
+
+        super(context, shaderCode);
 
         for(let id in colors) {
             let color: Color = colors[id];
