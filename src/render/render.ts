@@ -255,26 +255,26 @@ export default class Render {
 
     private updateShaderDiffuse(shader: Shader, color: Color | Color[]) {
         if(color instanceof Color) {
-            shader.setValue('diffuse_tl', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_tr', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_bl', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_br', color.normalizedArray(), 'vec4');
+            shader.setValue('internal_diffuse_tl', color.normalizedArray(), 'vec4');
+            shader.setValue('internal_diffuse_tr', color.normalizedArray(), 'vec4');
+            shader.setValue('internal_diffuse_bl', color.normalizedArray(), 'vec4');
+            shader.setValue('internal_diffuse_br', color.normalizedArray(), 'vec4');
         } else {
             if(color.length == 1) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tr', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_bl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_br', color[0].normalizedArray(), 'vec4');
             } else if(color.length == 2) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[1].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[1].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tr', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_bl', color[1].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_br', color[1].normalizedArray(), 'vec4');
             } else if(color.length == 4) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[1].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[2].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[3].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_tr', color[1].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_bl', color[2].normalizedArray(), 'vec4');
+                shader.setValue('internal_diffuse_br', color[3].normalizedArray(), 'vec4');
             } else {
                 throw new Error('Invalid color count');
             }

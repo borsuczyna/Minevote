@@ -48,13 +48,14 @@ interface Definitions {
     [key: string]: string
 };
 
-function buildStruct(name: string, variables: StructVariable[], definitions: Definitions): [string, string, string, string, string, string] {
+function buildStruct(name: string, variables: StructVariable[], definitions: Definitions): [string, string, string, string, string, string, Definitions] {
     let struct = `struct ${name} {\n`;
     let assignCode = `${name} compiler_${name};\n`;
     let varyingCode = ``;
     let varyingAssignCode = ``;
     let assignCodeInverted = '';
     let loadCode = `${name} compiler_${name};\n`;
+    let assignedTo: Definitions = {};
     
     for(let variable of variables) {
         struct += `    ${variable.type} ${variable.name};\n`;
@@ -62,13 +63,14 @@ function buildStruct(name: string, variables: StructVariable[], definitions: Def
             assignCodeInverted += `${definitions[variable.assignTo]} = compiler_${name}.${variable.name};\n`;
             assignCode += `compiler_${name}.${variable.name} = ${definitions[variable.assignTo]};\n`;
         }
+        if(variable.assignTo) assignedTo[variable.assignTo] = `compiler_pass_${variable.name}`;
         loadCode += `compiler_${name}.${variable.name} = compiler_pass_${variable.name};\n`;
         varyingCode += `varying ${variable.type} compiler_pass_${variable.name};\n`;
         varyingAssignCode += `compiler_pass_${variable.name} = compiler_${name}.${variable.name};\n`;
     }
     
     struct += '};';
-    return [struct, assignCode, varyingCode, varyingAssignCode, assignCodeInverted, loadCode];
+    return [struct, assignCode, varyingCode, varyingAssignCode, assignCodeInverted, loadCode, assignedTo];
 }
 
 function replaceAll(code: string, definitions: Definitions): string {
@@ -113,6 +115,7 @@ export function compileShader(code: string = defaultShader): [string, string] {
     let vertexDefinitions = {
         'TEXCOORD0': 'internal_inTexCoord',
         'POSITION0': 'internal_position',
+        'DIFFUSE0': 'internal_diffuse',
         'MATRIX': 'internal_matrix',
     };
     let [VSStructCode, VSAssignCode, VSVaryings, VSVaryingsAssign] = buildStruct(vertexShaderInput[0], VSStructVariables, vertexDefinitions);
@@ -123,7 +126,7 @@ export function compileShader(code: string = defaultShader): [string, string] {
     let PSStruct = code.match(PSStructRegex);
     if(!PSStruct) throw new Error('Not found definition for ' + pixelShaderInput[0]);
     let PSStructVariables: StructVariable[] = readStruct(PSStruct[1]);
-    let [PSStructCode, PSAssignCode, PSVaryings, PSVaryingsAssign, PSAssignCodeInverted, PSVaryingsLoad] = buildStruct(pixelShaderInput[0], PSStructVariables, {
+    let [PSStructCode, PSAssignCode, PSVaryings, PSVaryingsAssign, PSAssignCodeInverted, PSVaryingsLoad, PSAssignedTo] = buildStruct(pixelShaderInput[0], PSStructVariables, {
         'POSITION0': 'gl_Position',
     });
 
@@ -162,10 +165,23 @@ export function compileShader(code: string = defaultShader): [string, string] {
         'VertexUniforms': VertexUniformsCode,
         'PixelUniforms': PixelUniformsCode,
     };
+
+    function assignedVariables(code: string, definitions: Definitions): string {
+        const assignedVariableRegex = /<AssignedVariable:(Pixel|Vertex):(\w+)>/;
+        code = code.replaceAll(new RegExp(assignedVariableRegex, 'g'), (e) => {
+            let matched = e.match(assignedVariableRegex);
+            if(matched && matched[2] && definitions[matched[2]]) {
+                return definitions[matched[2]];
+            }
+            throw new Error(`Required "${matched && matched[2] || 'unknown'}" input for pixel shader`);
+        });
+
+        return code;
+    }
     
     finalVertexShader = replaceAll(finalVertexShader, definitions);
     finalPixelShader = replaceAll(finalPixelShader, definitions);
-    // finalVertexShader = replaceAssigns(finalVertexShader, vertexDefinitions);
+    finalPixelShader = assignedVariables(finalPixelShader, PSAssignedTo);
 
     return [finalVertexShader, finalPixelShader];
 }
