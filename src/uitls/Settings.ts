@@ -7,6 +7,7 @@ export interface Settings {
     DrawChunkBorders: boolean;
     DrawCollisionProcession: boolean;
     CollisionCheckIterations: number;
+    MaxLights: number;
 };
 
 const Settings: Settings = {
@@ -17,7 +18,8 @@ const Settings: Settings = {
     RenderDistance: 3,
     DrawChunkBorders: true,
     DrawCollisionProcession: false,
-    CollisionCheckIterations: 40
+    CollisionCheckIterations: 40,
+    MaxLights: 16
 };
 
 export default Settings;

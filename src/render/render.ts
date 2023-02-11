@@ -4,6 +4,7 @@ import { Position2D, Position3D, Position4D, Size } from "../uitls/position";
 import Settings from "../uitls/Settings";
 import Cache, { TextureInfo } from "./cache";
 import Color from "./color";
+import Light from "./light";
 
 interface Buffers {
     position: WebGLBuffer;
@@ -57,6 +58,7 @@ export default class Render {
     buffers: Buffers;
     lightDirection: Position2D = new Position2D();
     lightColor: Color = new Color();
+    lights: Light[] = [];
 
     constructor(context: WebGLRenderingContext, parent: Game) {
         this.parent = parent;
@@ -79,6 +81,10 @@ export default class Render {
         this.context.bufferData(this.context.ARRAY_BUFFER, new Float32Array(defaultBuffers.positions), this.context.STATIC_DRAW);
         this.context.bindBuffer(this.context.ARRAY_BUFFER, texCoord);
         this.context.bufferData(this.context.ARRAY_BUFFER, new Float32Array(defaultBuffers.texCoords), this.context.STATIC_DRAW);
+    }
+
+    setLights(lights: Light[]) {
+        this.lights = lights;
     }
 
     clear() {
@@ -201,45 +207,6 @@ export default class Render {
         });
     }
 
-    private updateDefaultShaderValues(shader: Shader) {
-        shader.setValue('time', performance.now(), 'float');
-        shader.setValue('lightDir', this.lightDirection.array(), 'vec2');
-        shader.setValue('lightColor', this.lightColor.normalizedArray(), 'vec4');
-    }
-
-    private updateShaderDiffuse(shader: Shader, color: Color | Color[]) {
-        if(color instanceof Color) {
-            shader.setValue('diffuse_tl', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_tr', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_bl', color.normalizedArray(), 'vec4');
-            shader.setValue('diffuse_br', color.normalizedArray(), 'vec4');
-        } else {
-            if(color.length == 1) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[0].normalizedArray(), 'vec4');
-            } else if(color.length == 2) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[1].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[1].normalizedArray(), 'vec4');
-            } else if(color.length == 4) {
-                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_tr', color[1].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_bl', color[2].normalizedArray(), 'vec4');
-                shader.setValue('diffuse_br', color[3].normalizedArray(), 'vec4');
-            } else {
-                throw new Error('Invalid color count');
-            }
-        }
-    }
-
-    private updateShaderUV(shader: Shader, uw: number, uh: number) {
-        shader.setValue('uw', uw, 'float');
-        shader.setValue('uh', uh, 'float');
-    }
-
     getScreenFromWorldPosition(position: Position3D = new Position3D()): Position3D {
         let zMult: number = 1/((position.z/2) + 1);
 
@@ -279,6 +246,60 @@ export default class Render {
         return dimensions.clone().multiply(this.parent.camera.zoom).multiply(zMult);
     }
 
+    private updateDefaultShaderValues(shader: Shader) {
+        shader.setValue('time', performance.now(), 'float');
+        shader.setValue('directionalLightDir', this.lightDirection.array(), 'vec2');
+        shader.setValue('directionalLightColor', this.lightColor.normalizedArray(), 'vec4');
+        shader.setValue('screenSize', [this.context.canvas.width, this.context.canvas.height], 'vec2');
+    }
+
+    private updateShaderDiffuse(shader: Shader, color: Color | Color[]) {
+        if(color instanceof Color) {
+            shader.setValue('diffuse_tl', color.normalizedArray(), 'vec4');
+            shader.setValue('diffuse_tr', color.normalizedArray(), 'vec4');
+            shader.setValue('diffuse_bl', color.normalizedArray(), 'vec4');
+            shader.setValue('diffuse_br', color.normalizedArray(), 'vec4');
+        } else {
+            if(color.length == 1) {
+                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_bl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_br', color[0].normalizedArray(), 'vec4');
+            } else if(color.length == 2) {
+                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_tr', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_bl', color[1].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_br', color[1].normalizedArray(), 'vec4');
+            } else if(color.length == 4) {
+                shader.setValue('diffuse_tl', color[0].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_tr', color[1].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_bl', color[2].normalizedArray(), 'vec4');
+                shader.setValue('diffuse_br', color[3].normalizedArray(), 'vec4');
+            } else {
+                throw new Error('Invalid color count');
+            }
+        }
+    }
+
+    private updateShaderUV(shader: Shader, uw: number, uh: number) {
+        shader.setValue('uw', uw, 'float');
+        shader.setValue('uh', uh, 'float');
+    }
+
+    private updateShaderLights(shader: Shader, lights: Light[]) {
+        for(let i = 0; i < Settings.MaxLights; i++) {
+            let light: Light = lights[i];
+            if(light) {
+                shader.setValue(`lightPosition[${i}]`, light.position.clone().array(), 'vec3');
+                shader.setValue(`lightColor[${i}]`, light.color.normalizedArray(), 'vec4');
+                shader.setValue(`lightSize[${i}]`, light.size * Settings.BlockSize/2, 'float');
+                shader.setValue(`lightActive[${i}]`, true, 'bool');
+            } else {
+                shader.setValue(`lightActive[${i}]`, false, 'bool');
+            }
+        }
+    }
+
     drawArrays() {
         this.context.bindBuffer(this.context.ARRAY_BUFFER, this.buffers.position);
         this.context.enableVertexAttribArray(this.shader.positionLocation);
@@ -311,6 +332,7 @@ export default class Render {
             this.updateDefaultShaderValues(drawCall.shader);
             this.updateShaderDiffuse(drawCall.shader, drawCall.color);
             this.updateShaderUV(drawCall.shader, drawCall.uw, drawCall.uh);
+            this.updateShaderLights(drawCall.shader, this.lights);
 
             this.context.uniformMatrix4fv(drawCall.shader.matrixLocation, false, drawCall.matrix);
             this.context.drawArrays(this.context.TRIANGLES, 0, 6);

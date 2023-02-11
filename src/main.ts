@@ -17,6 +17,7 @@ requestAnimationFrame = (callback) => {
 
 // @ test
 import Color from './render/color';
+import Light from './render/light';
 import Gradient from './shader/gradient';
 import Shader from './shader/shader';
 import './style.css';
@@ -29,7 +30,7 @@ let gradient = new Gradient(game.context,
 let rectangle = new Gradient(game.context, new Color(255, 0, 0));
 
 let normalShader: Shader = new Shader(game.context);
-game.render.lightColor = new Color(325, 325, 325);
+game.render.lightColor = new Color(425, 425, 425);
 game.render.lightDirection.set(2, -2).normalize();
 
 game.camera = new FreeCam(game);
@@ -37,6 +38,10 @@ let blocks: Position3D[] = [];
 for(let x = 0; x < 21; x++) {
     blocks.push(new Position3D(x, 0, 0));
 }
+
+let light: Light = new Light().setSize(3).setColor(new Color(1500/3, 1000/3, 0));
+let light2: Light = new Light().setSize(3).setColor(new Color(1500/2, 255, 255));
+let light3: Light = new Light().setSize(3).setColor(new Color(255, 1500/2, 255));
 
 function update() {
     requestAnimationFrame(update);
@@ -66,7 +71,16 @@ function update() {
         ]);
     }
 
-    game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, 10), new Size(15, 15), rectangle);
+    game.render.drawImageWithNormal(new Position3D(0, 0, 0), new Size(512, 512), '/blocks/gun.png', '/blocks/gun-normal.png', normalShader, [
+        new Color(255, 255, 255),
+    ]);
+
+    light.setPosition(new Position3D(game.cursor.position.x, game.cursor.position.y, 0));
+    light2.setPosition(new Position3D(256 + Math.sin(performance.now()/300)*128, 256 + Math.cos(performance.now()/300)*128, 0));
+    light3.setPosition(new Position3D(256 + Math.sin(-performance.now()/300)*128, 256 + Math.cos(-performance.now()/300)*128, 0));
+    game.render.setLights([light, light2, light3]);
+
+    game.render.drawShader(new Position3D(game.cursor.position.x, game.cursor.position.y, 10), new Size(5, 5), rectangle);
 
     gradient.setAngleDegrees(90);
     game.render.drawShader(new Position3D(), new Size(game.canvas.width, game.canvas.height), gradient);

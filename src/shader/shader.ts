@@ -13,22 +13,57 @@ vec4 vertexShaderFunction() {
 `;
 
 let defaultPixelShader = `
+float aspectDistance2D(vec2 position0, vec2 position1) {
+    float aspectRatio = screenSize.x/screenSize.y;
+    float xDistance = length(position0.x - position1.x);
+    float yDistance = length(position0.y - position1.y)/aspectRatio;
+    return length(vec2(xDistance, yDistance));
+}
+
+vec4 applyWorldLight(vec4 color, vec3 lightPosition, vec4 lightColor, float lightSize) {
+    float fPower = 1.0-aspectDistance2D(screenCoord.xy, lightPosition.xy/screenSize.xy)/(lightSize/screenSize.x);
+    float fNormalPower = 1.0-aspectDistance2D(screenCoord.xy, lightPosition.xy/screenSize.xy)/(lightSize/screenSize.x*2.0);
+    vec2 dir = (lightPosition.xy/screenSize.xy) - screenCoord.xy;
+    dir = normalize(dir);
+    float dotValue = dot(normal.xy, dir.xy);
+
+    vec4 normalColor = mix(
+        vec4(1, 1, 1, 1),
+        lightColor,
+        max(dotValue, 0.0)
+    );
+    color = mix(color, color*lightColor, max(fPower, 0.0));
+    color = mix(color, color*normalColor, max(fNormalPower*3.0, 0.0));
+    return color;
+}
+
+vec4 applyWorldLights(vec4 color, bool onlySunLight) {
+    float dotValue = dot(normal.xy, directionalLightDir.xy);
+    color.rgb *= mix(
+        vec3(1, 1, 1),
+        directionalLightColor.rgb,
+        max(dotValue, 0.0)
+    );
+
+    for(int i = 0; i < MAX_LIGHTS; i++) {
+        if(lightActive[i]) {
+            color = applyWorldLight(color, lightPosition[i], lightColor[i], lightSize[i]);
+        }
+    }
+
+    return color;
+}
+
 vec4 pixelShaderFunction() {
     vec4 color = texture2D(texture, vec2(texCoord.x, texCoord.y));
     vec4 normalColor = texture2D(normalTexture, vec2(texCoord.x, texCoord.y));
-
-    // color.rg += normal.xy;
     
-    float dotValue = dot(normal.xy, lightDir.xy);
-    color.rgb *= mix(
-        vec3(1, 1, 1),
-        lightColor.rgb,
-        dotValue
-    );
-    // color.rg = lightDir.xy;
+    // vec4 applyWorldLights(vec4 color, bool onlySunLight)
+    color = applyWorldLights(color, false);
 
     color *= diffuse;
     color.rgb *= color.a;
+    // color.rgb = lightColor[0].rgb;
     return color;
 }`;
 
@@ -60,7 +95,7 @@ export default class Shader {
         this.normalLocation = context.getUniformLocation(this.program, "normalTexture") as WebGLUniformLocation;
     }
 
-    setValue(key: string, value: any, type: 'float' | 'matrix' | 'texture' | 'int' | 'vec2' | 'vec3' | 'vec4') {
+    setValue(key: string, value: any, type: 'float' | 'matrix' | 'texture' | 'int' | 'vec2' | 'vec3' | 'vec4' | 'bool') {
         const location = this.context.getUniformLocation(this.program, key);
         if (!location) return;
         this.context.useProgram(this.program);
@@ -87,6 +122,9 @@ export default class Shader {
                 break;
             case 'vec4':
                 this.context.uniform4f(location, value[0], value[1], value[2], value[3]);
+                break;
+            case 'bool':
+                this.context.uniform1i(location, value ? 1 : 0);
                 break;
         }
     }

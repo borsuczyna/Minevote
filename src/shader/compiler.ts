@@ -6,6 +6,7 @@ uniform mat4 matrix;
 
 varying vec2 texCoord;
 varying vec4 screenCoord;
+uniform vec2 screenSize;
 
 <vertexShaderFunction>
 
@@ -14,16 +15,24 @@ void main() {
 }`;
 
 let pixelShaderTemplate = `
+// Definitions
+#define MAX_LIGHTS 16
+
 precision mediump float;
 
 varying vec2 texCoord;
+uniform vec2 screenSize;
 varying vec4 screenCoord;
 uniform vec4 diffuse_tl, diffuse_tr, diffuse_bl, diffuse_br;
 uniform float uw, uh;
 
 // Lights
-uniform vec2 lightDir;
-uniform vec4 lightColor;
+uniform vec2 directionalLightDir;
+uniform vec4 directionalLightColor;
+uniform vec3 lightPosition[MAX_LIGHTS];
+uniform vec4 lightColor[MAX_LIGHTS];
+uniform float lightSize[MAX_LIGHTS];
+uniform bool lightActive[MAX_LIGHTS];
 
 // Textures
 uniform sampler2D texture;
